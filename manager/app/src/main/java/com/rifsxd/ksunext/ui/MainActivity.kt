@@ -58,13 +58,19 @@ import com.rifsxd.ksunext.ui.screen.BottomBarDestination
 import com.rifsxd.ksunext.ui.theme.KernelSUTheme
 import com.rifsxd.ksunext.ui.util.*
 import com.rifsxd.ksunext.ui.util.LocalSnackbarHost
+import com.rifsxd.ksunext.ui.util.LocaleHelper
 import com.rifsxd.ksunext.ui.util.rootAvailable
 import com.rifsxd.ksunext.ui.util.install
 import com.rifsxd.ksunext.ui.util.isSuCompatDisabled
 import com.rifsxd.ksunext.ui.screen.FlashIt
 import com.rifsxd.ksunext.ui.viewmodel.ModuleViewModel
+import com.rifsxd.ksunext.ui.viewmodel.SuperUserViewModel
 
 class MainActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context?) {
+        super.attachBaseContext(newBase?.let { LocaleHelper.applyLanguage(it) })
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -109,6 +115,7 @@ class MainActivity : ComponentActivity() {
             val amoledMode = prefs.getBoolean("enable_amoled", false)
 
             val moduleViewModel: ModuleViewModel = viewModel()
+            val superUserViewModel: SuperUserViewModel = viewModel()
             val moduleUpdateCount = moduleViewModel.moduleList.count { 
                 moduleViewModel.checkUpdate(it).first.isNotEmpty()
             }
@@ -130,6 +137,16 @@ class MainActivity : ComponentActivity() {
                                 finishIntent = true
                             )
                         )
+                    }
+                }
+
+                LaunchedEffect(Unit) {
+                    if (superUserViewModel.appList.isEmpty()) {
+                        superUserViewModel.fetchAppList()
+                    }
+
+                    if (moduleViewModel.moduleList.isEmpty()) {
+                        moduleViewModel.fetchModuleList()
                     }
                 }
 
@@ -188,17 +205,6 @@ private fun BottomBar(navController: NavHostController, moduleUpdateCount: Int) 
         )
     ) {
         BottomBarDestination.entries
-            .filter {
-                // Hide SuperUser and Module when su compat is disabled
-                if (suCompatDisabled) {
-                    if (suSFS == "Supported" && susSUMode == "2") {
-                        true
-                    } else {
-                        // hide SuperUser and Module
-                        it != BottomBarDestination.SuperUser && it != BottomBarDestination.Module
-                    }
-                } else true
-            }
             .forEach { destination ->
                 if (!fullFeatured && destination.rootRequired) return@forEach
                 val isCurrentDestOnBackStack by navController.isRouteOnBackStackAsState(destination.direction)
